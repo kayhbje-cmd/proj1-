@@ -1,0 +1,11 @@
+{
+  "name": "SafeRoute AI",
+  "description": "AI-powered journey intelligence that analyzes road conditions, accident history, weather, hazards and time-based risks before they become dangerous.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
+
