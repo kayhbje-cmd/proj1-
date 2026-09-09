@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Maximize2,
   PhoneCall,
+  Users,
 } from 'lucide-react';
 import {
   RouteOption,
@@ -24,6 +25,7 @@ import {
   RoadHazard,
   EmergencyFacility,
   RiskLevel,
+  CommunityReport,
 } from '../types';
 
 interface RiskMapProps {
@@ -36,6 +38,8 @@ interface RiskMapProps {
   selectedSegment: RouteSegment | null;
   onSelectSegment: (segment: RouteSegment | null) => void;
   isDarkMode: boolean;
+  communityReports?: CommunityReport[];
+  onSelectReport?: (report: CommunityReport) => void;
 }
 
 export const RiskMap: React.FC<RiskMapProps> = ({
@@ -48,6 +52,8 @@ export const RiskMap: React.FC<RiskMapProps> = ({
   selectedSegment,
   onSelectSegment,
   isDarkMode,
+  communityReports = [],
+  onSelectReport,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -55,9 +61,9 @@ export const RiskMap: React.FC<RiskMapProps> = ({
   const tileLayerRef = useRef<L.TileLayer | null>(null);
 
   // Filter toggles
-  const [filter, setFilter] = useState<'all' | 'hazards' | 'weather' | 'hotspots' | 'emergency'>('all');
+  const [filter, setFilter] = useState<'all' | 'hazards' | 'weather' | 'hotspots' | 'emergency' | 'community'>('all');
   const [inspectingItem, setInspectingItem] = useState<{
-    type: 'segment' | 'hotspot' | 'hazard' | 'facility';
+    type: 'segment' | 'hotspot' | 'hazard' | 'facility' | 'report';
     data: any;
   } | null>(null);
 
@@ -268,7 +274,40 @@ export const RiskMap: React.FC<RiskMapProps> = ({
       });
     }
 
-    // 6. Start & Destination Pins
+    // 6. Community Road Reports
+    if ((filter === 'all' || filter === 'community') && communityReports.length > 0) {
+      communityReports.filter((r) => r.active).forEach((report) => {
+        // Color by confidence level
+        let bgColor = '#f97316'; // orange default
+        if (report.confidenceLevel === 'HIGHLY_CONFIRMED') {
+          bgColor = '#10b981'; // green
+        } else if (report.confidenceLevel === 'LIKELY') {
+          bgColor = '#3b82f6'; // blue
+        }
+
+        const iconHtml = `
+          <div style="background-color: ${bgColor};" class="w-7 h-7 rounded-full text-white flex items-center justify-center shadow-md border-2 border-white cursor-pointer hover:scale-125 transition-transform font-bold text-xs">
+            👥
+          </div>
+        `;
+
+        const customIcon = L.divIcon({
+          html: iconHtml,
+          className: 'custom-leaflet-community-report',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+
+        const marker = L.marker(report.coordinates, { icon: customIcon });
+        marker.on('click', () => {
+          setInspectingItem({ type: 'report', data: report });
+          onSelectReport?.(report);
+        });
+        layerGroup.addLayer(marker);
+      });
+    }
+
+    // 7. Start & Destination Pins
     const allSegCoords = currentRoute.segments.flatMap((s) => s.coordinates);
     if (allSegCoords.length > 1) {
       const startCoord = allSegCoords[0];
@@ -300,20 +339,20 @@ export const RiskMap: React.FC<RiskMapProps> = ({
       const bounds = L.latLngBounds(allSegCoords);
       map.fitBounds(bounds, { padding: [40, 40] });
     }
-  }, [currentRoute, allRoutes, hotspots, hazards, emergencyFacilities, filter, isDarkMode]);
+  }, [currentRoute, allRoutes, hotspots, hazards, emergencyFacilities, communityReports, filter, isDarkMode]);
 
   return (
-    <div className="relative w-full h-[480px] sm:h-[580px] rounded-3xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+    <div className="relative w-full h-[360px] sm:h-[580px] rounded-3xl overflow-hidden border border-slate-200 shadow-sm bg-white">
       
       {/* Map Canvas */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
       {/* Top Filter Bar (Clean Pill Controls) */}
-      <div className="absolute top-3 left-3 right-3 sm:right-auto z-10 flex flex-wrap gap-1.5 p-1.5 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-sm text-xs">
+      <div className="absolute top-3 left-3 right-3 sm:right-auto z-10 flex flex-nowrap overflow-x-auto gap-1.5 p-1.5 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-sm text-xs no-scrollbar">
         <button
           type="button"
           onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+          className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
             filter === 'all' ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -322,7 +361,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
         <button
           type="button"
           onClick={() => setFilter('hotspots')}
-          className={`px-2.5 py-1.5 rounded-xl font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+          className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-xl font-semibold flex items-center gap-1 transition-all cursor-pointer ${
             filter === 'hotspots' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -332,7 +371,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
         <button
           type="button"
           onClick={() => setFilter('hazards')}
-          className={`px-2.5 py-1.5 rounded-xl font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+          className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-xl font-semibold flex items-center gap-1 transition-all cursor-pointer ${
             filter === 'hazards' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -342,12 +381,22 @@ export const RiskMap: React.FC<RiskMapProps> = ({
         <button
           type="button"
           onClick={() => setFilter('emergency')}
-          className={`px-2.5 py-1.5 rounded-xl font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+          className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-xl font-semibold flex items-center gap-1 transition-all cursor-pointer ${
             filter === 'emergency' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <Hospital className="w-3.5 h-3.5" />
           Safe Stops & Help
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter('community')}
+          className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-xl font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+            filter === 'community' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5" />
+          Community Reports
         </button>
       </div>
 
@@ -497,6 +546,53 @@ export const RiskMap: React.FC<RiskMapProps> = ({
                 <PhoneCall className="w-3.5 h-3.5" />
                 <span>Call {inspectingItem.data.phone}</span>
               </a>
+            </div>
+          )}
+
+          {/* Community Report Details */}
+          {inspectingItem.type === 'report' && (
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-slate-500">Reported:</span>
+                <span className="font-bold text-slate-900">
+                  {inspectingItem.data.ageMinutes < 60
+                    ? `${inspectingItem.data.ageMinutes} min ago`
+                    : `${Math.floor(inspectingItem.data.ageMinutes / 60)}h ago`}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
+                <span className="text-slate-500 block text-[10px] font-semibold uppercase mb-1">Observation:</span>
+                <span className="leading-relaxed">"{inspectingItem.data.description}"</span>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-slate-500">Community Confirmations:</span>
+                <span className="font-bold text-emerald-700 flex items-center gap-1">
+                  <Users className="w-3 h-3" />
+                  {inspectingItem.data.confirmations.length}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-xl bg-blue-50 border border-blue-200">
+                <span className="text-blue-600 font-semibold">Community Confidence:</span>
+                <span className="font-bold text-blue-800">{inspectingItem.data.confidenceScore}%</span>
+              </div>
+
+              <div className={`p-2.5 rounded-xl text-[11px] ${
+                inspectingItem.data.confidenceLevel === 'HIGHLY_CONFIRMED'
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-900'
+                  : inspectingItem.data.confidenceLevel === 'LIKELY'
+                    ? 'bg-blue-50 border border-blue-200 text-blue-900'
+                    : 'bg-amber-50 border border-amber-200 text-amber-900'
+              }`}>
+                <strong className="block mb-0.5 font-bold">
+                  {inspectingItem.data.confidenceLevel === 'HIGHLY_CONFIRMED' && '✓ Highly Confirmed by Multiple Travellers'}
+                  {inspectingItem.data.confidenceLevel === 'LIKELY' && '~ Likely Report (Few Confirmations)'}
+                  {inspectingItem.data.confidenceLevel === 'NEW_REPORT' && '○ New Report (Awaiting Verification)'}
+                </strong>
+                Take appropriate precautions based on this community observation.
+              </div>
             </div>
           )}
 

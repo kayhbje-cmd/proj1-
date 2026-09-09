@@ -165,3 +165,49 @@ export interface GroundedPlace {
   snippet?: string;
   address?: string;
 }
+
+// Community Road Reports Types
+export type CommunityReportType = 
+  | 'traffic' 
+  | 'construction' 
+  | 'potholes' 
+  | 'waterlogging' 
+  | 'heavy_rain' 
+  | 'accident' 
+  | 'visibility' 
+  | 'blockage' 
+  | 'other';
+
+export type ConfidenceLevel = 'NEW_REPORT' | 'LIKELY' | 'HIGHLY_CONFIRMED';
+
+export type ReportAgeCategory = 'FRESH' | 'RECENT' | 'MAY_HAVE_CHANGED' | 'OLD_REPORT';
+
+export interface CommunityReportConfirmation {
+  userId: string;
+  timestamp: string;
+}
+
+export interface CommunityReport {
+  id: string;
+  type: CommunityReportType;
+  roadName: string;
+  roadSegmentId?: string;
+  description: string;
+  coordinates: [number, number];
+  reportedAt: string;
+  reportedBy: string;
+  locationVerified: boolean;
+  confirmations: CommunityReportConfirmation[];
+  issuedMisleadingReports: number; // Count by this reporter
+  confidenceScore: number; // 0-100
+  confidenceLevel: ConfidenceLevel;
+  ageCategory: ReportAgeCategory;
+  ageMinutes: number;
+  active: boolean;
+  userId?: string;
+  photoUrl?: string;
+}
+
+export interface SafetyScoreBreakdownWithCommunity extends SafetyScoreBreakdown {
+  communityRoadIntelligence: number; // Contribution to overall score
+}

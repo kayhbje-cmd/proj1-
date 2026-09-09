@@ -45,13 +45,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/95 border-b border-slate-200 transition-colors shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
           
           {/* Logo & Citizen Brand */}
           <div
             id="navbar-brand"
             onClick={() => setActiveTab('landing')}
-            className="flex items-center gap-3 cursor-pointer group select-none"
+            className="flex min-w-0 items-center gap-2 sm:gap-3 cursor-pointer group select-none"
           >
             <div className="relative w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform text-white">
               <ShieldAlert className="w-5 h-5 text-white" strokeWidth={2.5} />
@@ -59,10 +59,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-slate-900 font-heading">
+                <span className="whitespace-nowrap font-extrabold text-base sm:text-xl tracking-tight text-slate-900 font-heading">
                   SafeRoute<span className="text-emerald-700"> AI</span>
                 </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 tracking-wide">
+                <span className="hidden min-[420px]:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 tracking-wide">
                   Citizen Safety
                 </span>
               </div>
@@ -157,7 +157,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-2">
+          <div className="shrink-0 flex items-center gap-1.5 sm:gap-2">
             
             {/* Desktop Mobile Frame Simulator Toggle */}
             {onToggleMobileSimulator && (
@@ -208,7 +208,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Horizontal Sub-Navigation Bar (Top of Screen) */}
-        <div className="lg:hidden flex items-center justify-between overflow-x-auto py-2 border-t border-slate-100 no-scrollbar gap-1 text-xs">
+        <div className="lg:hidden flex items-center justify-between overflow-x-auto py-1.5 border-t border-slate-100 no-scrollbar gap-1 text-xs">
           <button
             onClick={() => setActiveTab('planner')}
             className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-semibold flex items-center gap-1.5 ${

@@ -23,6 +23,9 @@ import { EmergencySOSModal } from './components/EmergencySOSModal';
 import { SafetyReportModal } from './components/SafetyReportModal';
 import { FamilyShareModal } from './components/FamilyShareModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { CommunityReportsCard } from './components/CommunityReportsCard';
+import { CommunityReportSubmitModal } from './components/CommunityReportSubmitModal';
+import { CommunityReportDetailPanel } from './components/CommunityReportDetailPanel';
 
 import {
   ActiveTab,
@@ -31,6 +34,7 @@ import {
   RouteSegment,
   RoadHazard,
   AccidentHotspot,
+  CommunityReport,
 } from './types';
 import {
   ROUTES_DATA,
@@ -40,6 +44,7 @@ import {
   MOCK_WEATHER,
   TIME_SLOTS_DATA,
   DEMO_PRESETS,
+  MOCK_COMMUNITY_REPORTS,
 } from './data/mockRoutes';
 import {
   Sparkles,
@@ -53,6 +58,8 @@ import {
   Share2,
   Smartphone,
 } from 'lucide-react';
+
+const CURRENT_DEMO_USER_ID = 'demo-user-current';
 
 export default function App() {
   // Navigation & View State - Default to false for citizen-centric clean white theme
@@ -77,12 +84,15 @@ export default function App() {
   const [activeRouteId, setActiveRouteId] = useState<string>('route-a');
   const [hazards, setHazards] = useState<RoadHazard[]>(MOCK_HAZARDS);
   const [selectedSegment, setSelectedSegment] = useState<RouteSegment | null>(null);
+  const [communityReports, setCommunityReports] = useState<CommunityReport[]>(MOCK_COMMUNITY_REPORTS);
+  const [selectedReport, setSelectedReport] = useState<CommunityReport | null>(null);
 
   // Modals & Drawers
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [isSOSOpen, setIsSOSOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isCommunityReportSubmitOpen, setIsCommunityReportSubmitOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStepText, setAnalysisStepText] = useState('');
 
@@ -154,6 +164,91 @@ export default function App() {
 
   const handleAddHazard = (newHazard: RoadHazard) => {
     setHazards((prev) => [newHazard, ...prev]);
+  };
+
+  // Community Report Handlers
+  const handleConfirmReport = (reportId: string) => {
+    setCommunityReports((prev) =>
+      prev.map((r) => {
+        if (r.id === reportId) {
+          // A reporter's own confirmation is never treated as independent evidence.
+          if (r.reportedBy === CURRENT_DEMO_USER_ID) return r;
+          // Add confirmation from current user (simulated as 'user_current')
+          const updated = { ...r };
+          if (!updated.confirmations.some((c) => c.userId === CURRENT_DEMO_USER_ID)) {
+            updated.confirmations = [
+              ...updated.confirmations,
+              { userId: CURRENT_DEMO_USER_ID, timestamp: new Date().toISOString() },
+            ];
+          }
+          return updated;
+        }
+        return r;
+      })
+    );
+  };
+
+  const handleReportMisleading = (reportId: string) => {
+    // In a real system, this would flag the report and possibly the user
+    setCommunityReports((prev) =>
+      prev.map((r) => {
+        if (r.id === reportId) {
+          return { ...r, active: false }; // Deactivate for demo
+        }
+        return r;
+      })
+    );
+  };
+
+  const handleSubmitCommunityReport = (report: {
+    type: CommunityReport['type'];
+    roadName: string;
+    roadSegmentId?: string;
+    description: string;
+    coordinates: [number, number];
+    locationVerified: boolean;
+    photoUrl?: string;
+  }) => {
+    const newReport: CommunityReport = {
+      id: `cr-${Date.now()}`,
+      type: report.type,
+      roadName: report.roadName,
+      roadSegmentId: report.roadSegmentId,
+      description: report.description,
+      coordinates: report.coordinates,
+      reportedAt: new Date().toISOString(),
+      reportedBy: CURRENT_DEMO_USER_ID,
+      locationVerified: report.locationVerified,
+      confirmations: [],
+      issuedMisleadingReports: 0,
+      confidenceScore: 35,
+      confidenceLevel: 'NEW_REPORT',
+      ageCategory: 'FRESH',
+      ageMinutes: 0,
+      active: true,
+      photoUrl: report.photoUrl,
+    };
+    setCommunityReports((prev) => {
+      // The demo follows the same rule a backend would: near-identical, recent
+      // reports are grouped into an existing observation instead of duplicated.
+      const matchingReport = prev.find((existing) =>
+        existing.active &&
+        existing.type === newReport.type &&
+        existing.roadName.trim().toLowerCase() === newReport.roadName.trim().toLowerCase() &&
+        Date.now() - new Date(existing.reportedAt).getTime() < 2 * 60 * 60 * 1000,
+      );
+      if (!matchingReport) return [newReport, ...prev];
+
+      return prev.map((existing) => existing.id === matchingReport.id
+        ? {
+            ...existing,
+            confirmations: existing.confirmations.some((confirmation) => confirmation.userId === CURRENT_DEMO_USER_ID)
+              ? existing.confirmations
+              : [...existing.confirmations, { userId: CURRENT_DEMO_USER_ID, timestamp: new Date().toISOString() }],
+          }
+        : existing,
+      );
+    });
   };
 
   return (
@@ -251,6 +346,8 @@ export default function App() {
                       selectedSegment={selectedSegment}
                       onSelectSegment={setSelectedSegment}
                       isDarkMode={isDarkMode}
+                      communityReports={communityReports}
+                      onSelectReport={setSelectedReport}
                     />
                   </div>
                 </div>
@@ -374,6 +471,8 @@ export default function App() {
                     selectedSegment={selectedSegment}
                     onSelectSegment={setSelectedSegment}
                     isDarkMode={isDarkMode}
+                    communityReports={communityReports}
+                    onSelectReport={setSelectedReport}
                   />
                 </div>
 
@@ -424,6 +523,33 @@ export default function App() {
                     if (seg) setSelectedSegment(seg);
                   }}
                 />
+
+                {/* 9. Community Road Reports */}
+                <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-7 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Real-Time Community Intelligence
+                      </span>
+                      <h3 className="text-lg font-extrabold text-slate-900">
+                        Community Road Reports
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setIsCommunityReportSubmitOpen(true)}
+                      className="px-3.5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-xs font-bold text-blue-800 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                    >
+                      <span>+ Report Condition</span>
+                    </button>
+                  </div>
+
+                  <CommunityReportsCard
+                    reports={communityReports}
+                    onConfirmReport={handleConfirmReport}
+                    onReportMisleading={handleReportMisleading}
+                    isDarkMode={isDarkMode}
+                  />
+                </div>
 
               </div>
             )}
@@ -531,6 +657,29 @@ export default function App() {
         vehicleType={journeyInput.vehicleType}
         departureTime={journeyInput.departureTime}
       />
+
+      {/* Community Report Submit Modal */}
+      <CommunityReportSubmitModal
+        isOpen={isCommunityReportSubmitOpen}
+        onClose={() => setIsCommunityReportSubmitOpen(false)}
+        onSubmit={handleSubmitCommunityReport}
+        availableSegments={currentRoute.segments}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* Community Report Detail Panel */}
+      {selectedReport && (
+        <div className="fixed inset-0 z-40" onClick={() => setSelectedReport(null)}>
+          <CommunityReportDetailPanel
+            report={selectedReport}
+            segment={currentRoute.segments.find((s) => s.id === selectedReport.roadSegmentId) || null}
+            onClose={() => setSelectedReport(null)}
+            onConfirm={handleConfirmReport}
+            onReportMisleading={handleReportMisleading}
+            isDarkMode={isDarkMode}
+          />
+        </div>
+      )}
 
     </div>
   );
